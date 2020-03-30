@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/NOVAPokemon/authentication/auth"
+	"github.com/NOVAPokemon/notifications/exported"
 	"github.com/NOVAPokemon/utils"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
 	"github.com/gorilla/mux"
@@ -19,14 +20,8 @@ var userChannels = UserNotificationChannels{
 }
 
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
-	err, claims := auth.VerifyJWT(&w, r, serviceName)
-
-	if err != nil {
-		return
-	}
-
 	var request AddNotificationRequest
-	err = json.NewDecoder(r.Body).Decode(&request)
+	err := json.NewDecoder(r.Body).Decode(&request)
 
 	if err != nil {
 		utils.HandleJSONDecodeError(&w, serviceName, err)
@@ -48,7 +43,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := claims.Username
+	username := request.Username
 
 	channel := userChannels.Get(username)
 
@@ -58,21 +53,22 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json, err := json.Marshal(notification)
+	jsonBytes, err := json.Marshal(notification)
 
 	if err != nil {
 		utils.HandleJSONEncodeError(&w, serviceName, err)
 		return
 	}
 
-	channel <- json
+	log.Info("got notification %+v", notification)
+	channel <- jsonBytes
 }
 
 // Possibly useless endpoint since users dont need explicitly to delete
 // the notifications read.
 func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	idHex := vars[IdPathVar]
+	idHex := vars[exported.IdPathVar]
 	id, err := primitive.ObjectIDFromHex(idHex)
 
 	if err != nil {
