@@ -7,14 +7,14 @@ import (
 	"net/http"
 )
 
-const host = "localhost"
-const Port = 8010
+const host = utils.Host
+const port = utils.NotificationsPort
 
-var addr = fmt.Sprintf("%s:%d", host, Port)
+var addr = fmt.Sprintf("%s:%d", host, port)
 
 func main() {
 	r := utils.NewRouter(routes)
 
-	log.Infof("Starting NOTIFICATIONS server in port %d...\n", Port)
+	log.Infof("Starting NOTIFICATIONS server in port %d...\n", port)
 	log.Fatal(http.ListenAndServe(addr, r))
 }
