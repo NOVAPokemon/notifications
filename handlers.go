@@ -59,7 +59,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info("got notification %+v", notification)
+	log.Infof("got notification %+v", notification)
 	channel <- jsonBytes
 }
 
