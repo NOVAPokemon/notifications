@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/NOVAPokemon/authentication/auth"
 	"github.com/NOVAPokemon/notifications/exported"
 	"github.com/NOVAPokemon/utils"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"

@@ -24,7 +24,7 @@ var routes = utils.Routes{
 	utils.Route{
 		Name:        DeleteNotificationName,
 		Method:      DELETE,
-		Pattern:     exported.SpecificNotificationPath,
+		Pattern:     exported.SpecificNotificationRoute,
 		HandlerFunc: DeleteNotificationHandler,
 	},
 	utils.Route{
