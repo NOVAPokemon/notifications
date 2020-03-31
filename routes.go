@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/NOVAPokemon/notifications/exported"
+	"fmt"
+	exported"github.com/NOVAPokemon/notifications/exported"
 	"github.com/NOVAPokemon/utils"
 )
 
@@ -11,8 +12,11 @@ const SubscribeNotificationName = "SUBSCRIBE_NOTIFICATION"
 
 const GET = "GET"
 const DELETE = "DELETE"
-
 const POST = "POST"
+
+const IdPathVar = "id"
+var SpecificNotificationRoute = fmt.Sprintf("/notification/{%s}", IdPathVar)
+
 
 var routes = utils.Routes{
 	utils.Route{
@@ -24,7 +28,7 @@ var routes = utils.Routes{
 	utils.Route{
 		Name:        DeleteNotificationName,
 		Method:      DELETE,
-		Pattern:     exported.SpecificNotificationRoute,
+		Pattern:     SpecificNotificationRoute,
 		HandlerFunc: DeleteNotificationHandler,
 	},
 	utils.Route{

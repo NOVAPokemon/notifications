@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/NOVAPokemon/notifications/exported"
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/cookies"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -67,7 +67,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 // the notifications read.
 func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	idHex := vars[exported.IdPathVar]
+	idHex := vars[IdPathVar]
 	id, err := primitive.ObjectIDFromHex(idHex)
 
 	if err != nil {
@@ -95,7 +95,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err, claims := auth.VerifyJWT(&w, r, serviceName)
+	claims, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
 
 	if err != nil {
 		return
@@ -115,7 +115,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 
 func notifyUser(username string, conn *websocket.Conn, channel chan []byte) {
 	defer closeUserListener(username, conn, channel)
-	
+
 	for {
 		select {
 		case jsonNotification := <-channel:
