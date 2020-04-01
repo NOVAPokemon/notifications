@@ -45,9 +45,9 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := request.Username
 
-	channel := userChannels.Get(username)
+	channel, ok := userChannels.Get(username)
 
-	if channel == nil {
+	if !ok {
 		log.Errorf("user %s is not listening for notifications", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -97,7 +97,6 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
-
 	if err != nil {
 		return
 	}

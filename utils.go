@@ -21,10 +21,12 @@ func (n *UserNotificationChannels) Remove(username string) {
 	delete(n.channels, username)
 }
 
-func (n *UserNotificationChannels) Get(username string) chan []byte {
+func (n *UserNotificationChannels) Get(username string) (channel chan []byte, ok bool) {
 	n.RWMutex.RLock()
 	defer n.RWMutex.RUnlock()
-	return n.channels[username]
+
+	channel, ok = n.channels[username]
+	return channel, ok
 }
 
 func (n *UserNotificationChannels) Has(username string) bool {
