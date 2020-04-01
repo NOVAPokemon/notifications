@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/api"
 	"github.com/NOVAPokemon/utils/cookies"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
 	"github.com/gorilla/mux"
@@ -67,7 +68,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 // the notifications read.
 func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	idHex := vars[IdPathVar]
+	idHex := vars[api.IdPathVar]
 	id, err := primitive.ObjectIDFromHex(idHex)
 
 	if err != nil {
