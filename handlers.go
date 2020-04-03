@@ -6,11 +6,13 @@ import (
 	"github.com/NOVAPokemon/utils/api"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
 	"github.com/NOVAPokemon/utils/tokens"
+	ws "github.com/NOVAPokemon/utils/websockets"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"time"
 )
 
 const serviceName = "Notifications"
@@ -148,28 +150,51 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	channel := make(chan []byte)
 	userChannels.Add(username, channel)
 
-	go notifyUser(username, conn, channel)
+	go handleUser(username, conn, channel)
 }
 
-func notifyUser(username string, conn *websocket.Conn, channel chan []byte) {
-	defer closeUserListener(username, conn, channel)
+func handleUser(username string, conn *websocket.Conn, channel chan []byte) {
+	log.Info("handling user ", username)
+
+	ticker := time.NewTicker(ws.PingPeriod)
+	defer closeUserListener(username, conn, channel, ticker)
+
+	err := conn.SetReadDeadline(time.Now().Add(ws.PongWait))
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	conn.SetPongHandler(func(string) error {return conn.SetReadDeadline(time.Now().Add(ws.PongWait))})
+
+	go func() {
+		if _, _, err := conn.NextReader(); err != nil {
+			return
+		}
+	}()
 
 	for {
 		select {
+		case <-ticker.C:
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		case jsonNotification := <-channel:
 			err := conn.WriteMessage(websocket.TextMessage, jsonNotification)
 			if err != nil {
 				return
 			}
-
 		}
 	}
+
 }
 
-func closeUserListener(username string, conn *websocket.Conn, channel chan []byte) {
+func closeUserListener(username string, conn *websocket.Conn, channel chan []byte, ticker *time.Ticker) {
+	log.Info("removing user ", username)
 	conn.Close()
 	close(channel)
 	userChannels.Remove(username)
+	ticker.Stop()
 }
 
 func handleError(w *http.ResponseWriter, errorString string, err error) {
