@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/api"
-	"github.com/NOVAPokemon/utils/cookies"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
+	"github.com/NOVAPokemon/utils/tokens"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -133,7 +133,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
+	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		return
 	}
