@@ -20,7 +20,7 @@ var userChannels = UserNotificationChannels{
 }
 
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
-	claims, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
+	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		return
 	}
@@ -99,8 +99,9 @@ func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
+	_, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 
