@@ -20,9 +20,13 @@ var userChannels = UserNotificationChannels{
 }
 
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
-	var request AddNotificationRequest
-	err := json.NewDecoder(r.Body).Decode(&request)
+	claims, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
+	if err != nil {
+		return
+	}
 
+	var request AddNotificationRequest
+	err = json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		utils.HandleJSONDecodeError(&w, serviceName, err)
 	}
@@ -36,7 +40,6 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = notificationdb.AddNotification(notification)
-
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -46,7 +49,6 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	username := request.Username
 
 	channel, ok := userChannels.Get(username)
-
 	if !ok {
 		log.Errorf("user %s is not listening for notifications", username)
 		w.WriteHeader(http.StatusNotFound)
@@ -54,13 +56,12 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonBytes, err := json.Marshal(notification)
-
 	if err != nil {
 		utils.HandleJSONEncodeError(&w, serviceName, err)
 		return
 	}
 
-	log.Infof("got notification %+v", notification)
+	log.Infof("got notification from %s to %s", claims.Username, username)
 	channel <- jsonBytes
 }
 
@@ -68,9 +69,14 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 // the notifications read.
 func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	idHex := vars[api.IdPathVar]
-	id, err := primitive.ObjectIDFromHex(idHex)
+	idHex, ok := vars[api.IdPathVar]
+	if !ok {
+		log.Error("no id provided")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
+	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		log.Error("bad id in delete request")
 		w.WriteHeader(http.StatusBadRequest)
@@ -81,6 +87,37 @@ func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username, ok := vars[api.UsernamePathVar]
+	if !ok {
+		log.Error("no id provided")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	_, err := cookies.ExtractAndVerifyAuthToken(&w, r, serviceName)
+	if err != nil {
+		return
+	}
+
+	usernames := userChannels.GetOthers(username)
+
+	log.Info("returning others: ", len(usernames))
+
+	jsonBytes, err := json.Marshal(usernames)
+	if err != nil {
+		utils.HandleJSONEncodeError(&w, serviceName, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(jsonBytes)
+	if err != nil {
+		handleError(&w, "Error writing json to body", err)
 	}
 }
 
@@ -123,6 +160,7 @@ func notifyUser(username string, conn *websocket.Conn, channel chan []byte) {
 			if err != nil {
 				return
 			}
+
 		}
 	}
 }

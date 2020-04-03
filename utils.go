@@ -34,3 +34,17 @@ func (n *UserNotificationChannels) Has(username string) bool {
 	defer n.RWMutex.RUnlock()
 	return n.channels[username] != nil
 }
+
+func (n *UserNotificationChannels) GetOthers(myUsername string) []string {
+	n.RWMutex.RLock()
+	defer n.RWMutex.RUnlock()
+
+	var usernames []string
+	for username, _ := range n.channels {
+		if username != myUsername{
+			usernames = append(usernames, username)
+		}
+	}
+
+	return usernames
+}

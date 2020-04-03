@@ -8,6 +8,7 @@ import (
 const AddNotificationName = "ADD_NOTIFICATION"
 const DeleteNotificationName = "DELETE_NOTIFICATION"
 const SubscribeNotificationName = "SUBSCRIBE_NOTIFICATION"
+const GetListenersName = "GET_LISTENERS"
 
 const GET = "GET"
 const DELETE = "DELETE"
@@ -31,5 +32,11 @@ var routes = utils.Routes{
 		Method:      GET,
 		Pattern:     api.SubscribeNotificationPath,
 		HandlerFunc: SubscribeToNotificationsHandler,
+	},
+	utils.Route{
+		Name:        GetListenersName,
+		Method:      GET,
+		Pattern:     api.GetListenersRoute,
+		HandlerFunc: GetOtherListenersHandler,
 	},
 }
