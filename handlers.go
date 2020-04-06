@@ -93,19 +93,13 @@ func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	username, ok := vars[api.UsernamePathVar]
-	if !ok {
-		log.Error("no id provided")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	_, err := tokens.ExtractAndVerifyAuthToken(r.Header)
+	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
+	username := authToken.Username
 
 	usernames := userChannels.GetOthers(username)
 
@@ -153,6 +147,20 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	go handleUser(username, conn, channel)
 }
 
+func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	log.Infof("unsubscribing %s from notifications", authToken.Username)
+
+	if userChannels.Has(authToken.Username) {
+		userChannels.Remove(authToken.Username)
+	}
+}
+
 func handleUser(username string, conn *websocket.Conn, channel chan []byte) {
 	log.Info("handling user ", username)
 
@@ -193,7 +201,11 @@ func closeUserListener(username string, conn *websocket.Conn, channel chan []byt
 	log.Info("removing user ", username)
 	conn.Close()
 	close(channel)
-	userChannels.Remove(username)
+
+	if userChannels.Has(username) {
+		userChannels.Remove(username)
+	}
+
 	ticker.Stop()
 }
 
