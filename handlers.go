@@ -12,14 +12,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"sync"
 	"time"
 )
 
 const serviceName = "Notifications"
 
-var userChannels = UserNotificationChannels{
-	channels: map[string]chan []byte{},
-}
+type keyType = string
+type valueType = chan []byte
+
+var userChannels = sync.Map{}
 
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
@@ -50,12 +52,14 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := request.Username
 
-	channel, ok := userChannels.Get(username)
+	value, ok := userChannels.Load(username)
 	if !ok {
 		log.Errorf("user %s is not listening for notifications", username)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+
+	channel := value.(valueType)
 
 	jsonBytes, err := json.Marshal(notification)
 	if err != nil {
@@ -101,7 +105,14 @@ func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := authToken.Username
 
-	usernames := userChannels.GetOthers(username)
+	var usernames []string
+	userChannels.Range(func(key, value interface{}) bool {
+		currUsername := key.(keyType)
+		if currUsername != username {
+			usernames = append(usernames, currUsername)
+		}
+		return true
+	})
 
 	log.Info("returning others: ", len(usernames))
 
@@ -137,17 +148,17 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := claims.Username
 
-	if userChannels.Has(username) {
+	if _, ok := userChannels.Load(username); ok {
 		return
 	}
 
 	channel := make(chan []byte)
-	userChannels.Add(username, channel)
+	userChannels.Store(username, channel)
 
 	go handleUser(username, conn, channel)
 }
 
-func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+func UnsubscribeToNotificationsHandler(_ http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		log.Error(err)
@@ -156,8 +167,8 @@ func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("unsubscribing %s from notifications", authToken.Username)
 
-	if userChannels.Has(authToken.Username) {
-		userChannels.Remove(authToken.Username)
+	if _, ok := userChannels.Load(authToken.Username); ok {
+		userChannels.Delete(authToken.Username)
 	}
 }
 
@@ -173,7 +184,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan []byte) {
 		return
 	}
 
-	conn.SetPongHandler(func(string) error {return conn.SetReadDeadline(time.Now().Add(ws.PongWait))})
+	conn.SetPongHandler(func(string) error { return conn.SetReadDeadline(time.Now().Add(ws.PongWait)) })
 
 	go func() {
 		if _, _, err := conn.NextReader(); err != nil {
@@ -202,8 +213,8 @@ func closeUserListener(username string, conn *websocket.Conn, channel chan []byt
 	conn.Close()
 	close(channel)
 
-	if userChannels.Has(username) {
-		userChannels.Remove(username)
+	if _, ok := userChannels.Load(username); ok {
+		userChannels.Delete(username)
 	}
 
 	ticker.Stop()
