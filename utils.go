@@ -41,7 +41,7 @@ func (n *UserNotificationChannels) GetOthers(myUsername string) []string {
 
 	var usernames []string
 	for username, _ := range n.channels {
-		if username != myUsername{
+		if username != myUsername {
 			usernames = append(usernames, username)
 		}
 	}
