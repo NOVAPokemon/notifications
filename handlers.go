@@ -199,13 +199,11 @@ func handleUser(username string, conn *websocket.Conn, channel chan []byte) {
 				return
 			}
 		case jsonNotification := <-channel:
-			err := conn.WriteMessage(websocket.TextMessage, jsonNotification)
-			if err != nil {
+			if err := conn.WriteMessage(websocket.TextMessage, jsonNotification); err != nil {
 				return
 			}
 		}
 	}
-
 }
 
 func closeUserListener(username string, conn *websocket.Conn, channel chan []byte, ticker *time.Ticker) {
