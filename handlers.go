@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/api"
+	"github.com/NOVAPokemon/utils/clients"
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
+	"github.com/NOVAPokemon/utils/messages"
+	trades "github.com/NOVAPokemon/utils/messages/notifications"
 	"github.com/NOVAPokemon/utils/tokens"
 	ws "github.com/NOVAPokemon/utils/websockets"
 	"github.com/gorilla/mux"
@@ -19,7 +22,7 @@ import (
 const serviceName = "Notifications"
 
 type keyType = string
-type valueType = chan []byte
+type valueType = chan messages.Serializable
 
 var userChannels = sync.Map{}
 
@@ -61,14 +64,10 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	channel := value.(valueType)
 
-	jsonBytes, err := json.Marshal(notification)
-	if err != nil {
-		utils.HandleJSONEncodeError(&w, serviceName, err)
-		return
-	}
-
 	log.Infof("got notification from %s to %s", claims.Username, username)
-	channel <- jsonBytes
+	channel <- trades.NotificationMessage{
+		Notification:  notification,
+	}
 }
 
 // Possibly useless endpoint since users dont need explicitly to delete
@@ -152,7 +151,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	channel := make(chan []byte)
+	channel := make(chan messages.Serializable)
 	userChannels.Store(username, channel)
 
 	go handleUser(username, conn, channel)
@@ -172,7 +171,7 @@ func UnsubscribeToNotificationsHandler(_ http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleUser(username string, conn *websocket.Conn, channel chan []byte) {
+func handleUser(username string, conn *websocket.Conn, channel chan messages.Serializable) {
 	log.Info("handling user ", username)
 
 	ticker := time.NewTicker(ws.PingPeriod)
@@ -198,15 +197,14 @@ func handleUser(username string, conn *websocket.Conn, channel chan []byte) {
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
-		case jsonNotification := <-channel:
-			if err := conn.WriteMessage(websocket.TextMessage, jsonNotification); err != nil {
-				return
-			}
+		case msg := <-channel:
+			msgString := msg.SerializeToWSMessage().Serialize()
+			clients.Send(conn, &msgString)
 		}
 	}
 }
 
-func closeUserListener(username string, conn *websocket.Conn, channel chan []byte, ticker *time.Ticker) {
+func closeUserListener(username string, conn *websocket.Conn, channel chan messages.Serializable, ticker *time.Ticker) {
 	log.Info("removing user ", username)
 	conn.Close()
 	close(channel)
