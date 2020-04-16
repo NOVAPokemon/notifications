@@ -206,7 +206,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan messages.Ser
 
 func closeUserListener(username string, conn *websocket.Conn, channel chan messages.Serializable, ticker *time.Ticker) {
 	log.Info("removing user ", username)
-	conn.Close()
+	ws.CloseConnection(conn)
 	close(channel)
 
 	if _, ok := userChannels.Load(username); ok {
