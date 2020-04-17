@@ -8,8 +8,7 @@ import (
 	notificationdb "github.com/NOVAPokemon/utils/database/notification"
 	"github.com/NOVAPokemon/utils/tokens"
 	ws "github.com/NOVAPokemon/utils/websockets"
-	"github.com/NOVAPokemon/utils/websockets/messages"
-	trades "github.com/NOVAPokemon/utils/websockets/messages/notifications"
+	"github.com/NOVAPokemon/utils/websockets/notifications"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -22,7 +21,7 @@ import (
 const serviceName = "Notifications"
 
 type keyType = string
-type valueType = chan messages.Serializable
+type valueType = chan ws.Serializable
 
 var userChannels = sync.Map{}
 
@@ -65,8 +64,8 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	channel := value.(valueType)
 
 	log.Infof("got notification from %s to %s", claims.Username, username)
-	channel <- trades.NotificationMessage{
-		Notification:  notification,
+	channel <- notifications.NotificationMessage{
+		Notification: notification,
 	}
 }
 
@@ -151,7 +150,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	channel := make(chan messages.Serializable)
+	channel := make(chan ws.Serializable)
 	userChannels.Store(username, channel)
 
 	go handleUser(username, conn, channel)
@@ -171,7 +170,7 @@ func UnsubscribeToNotificationsHandler(_ http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleUser(username string, conn *websocket.Conn, channel chan messages.Serializable) {
+func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializable) {
 	log.Info("handling user ", username)
 
 	ticker := time.NewTicker(ws.PingPeriod)
@@ -204,7 +203,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan messages.Ser
 	}
 }
 
-func closeUserListener(username string, conn *websocket.Conn, channel chan messages.Serializable, ticker *time.Ticker) {
+func closeUserListener(username string, conn *websocket.Conn, channel chan ws.Serializable, ticker *time.Ticker) {
 	log.Info("removing user ", username)
 	ws.CloseConnection(conn)
 	close(channel)
