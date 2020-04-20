@@ -31,19 +31,13 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request AddNotificationRequest
-	err = json.NewDecoder(r.Body).Decode(&request)
+	var notification utils.Notification
+	err = json.NewDecoder(r.Body).Decode(&notification)
 	if err != nil {
 		utils.HandleJSONDecodeError(&w, serviceName, err)
 	}
 
-	id := primitive.NewObjectID()
-	notification := utils.Notification{
-		Id:       id,
-		Username: request.Username,
-		Type:     request.Type,
-		Content:  request.Content,
-	}
+	notification.Id = primitive.NewObjectID()
 
 	err = notificationdb.AddNotification(notification)
 	if err != nil {
@@ -52,7 +46,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := request.Username
+	username := notification.Username
 
 	value, ok := userChannels.Load(username)
 	if !ok {
