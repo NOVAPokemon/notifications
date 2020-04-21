@@ -31,22 +31,22 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var notification utils.Notification
-	err = json.NewDecoder(r.Body).Decode(&notification)
+	var notificationMsg notifications.NotificationMessage
+	err = json.NewDecoder(r.Body).Decode(&notificationMsg)
 	if err != nil {
 		utils.HandleJSONDecodeError(&w, serviceName, err)
 	}
 
-	notification.Id = primitive.NewObjectID()
+	notificationMsg.Notification.Id = primitive.NewObjectID()
 
-	err = notificationdb.AddNotification(notification)
+	err = notificationdb.AddNotification(notificationMsg.Notification)
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	username := notification.Username
+	username := notificationMsg.Notification.Username
 
 	value, ok := userChannels.Load(username)
 	if !ok {
@@ -58,9 +58,8 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	channel := value.(valueType)
 
 	log.Infof("got notification from %s to %s", claims.Username, username)
-	channel <- notifications.NotificationMessage{
-		Notification: notification,
-	}
+
+	channel <- notificationMsg
 }
 
 // Possibly useless endpoint since users dont need explicitly to delete
