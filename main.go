@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-const host = utils.Host
+const host = utils.ServeHost
 const port = utils.NotificationsPort
 
 var addr = fmt.Sprintf("%s:%d", host, port)

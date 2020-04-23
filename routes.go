@@ -16,6 +16,7 @@ const DELETE = "DELETE"
 const POST = "POST"
 
 var routes = utils.Routes{
+	api.DefaultRoute,
 	utils.Route{
 		Name:        AddNotificationName,
 		Method:      POST,
