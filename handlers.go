@@ -18,8 +18,6 @@ import (
 	"time"
 )
 
-const serviceName = "Notifications"
-
 type keyType = string
 type valueType = chan ws.Serializable
 
