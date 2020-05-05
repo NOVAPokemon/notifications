@@ -26,30 +26,29 @@ var userChannels = sync.Map{}
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
+		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
 		return
 	}
 
 	var notificationMsg notifications.NotificationMessage
 	err = json.NewDecoder(r.Body).Decode(&notificationMsg)
 	if err != nil {
-		utils.HandleJSONDecodeError(&w, serviceName, err)
+		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
+		return
 	}
 
 	notificationMsg.Notification.Id = primitive.NewObjectID()
-
 	err = notificationdb.AddNotification(notificationMsg.Notification)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
 		return
 	}
 
 	username := notificationMsg.Notification.Username
-
 	value, ok := userChannels.Load(username)
 	if !ok {
-		log.Errorf("user %s is not listening for notifications", username)
-		w.WriteHeader(http.StatusNotFound)
+		err = wrapAddNotificationError(newUserNotListeningError(username))
+		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusNotFound)
 		return
 	}
 
@@ -66,29 +65,27 @@ func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idHex, ok := vars[api.IdPathVar]
 	if !ok {
-		log.Error("no id provided")
-		w.WriteHeader(http.StatusBadRequest)
+		err := wrapDeleteNotificationError(errorNoNotificationId)
+		utils.LogAndSendHTTPError(&w, err, http.StatusBadRequest)
 		return
 	}
 
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
-		log.Error("bad id in delete request")
-		w.WriteHeader(http.StatusBadRequest)
+		utils.LogAndSendHTTPError(&w, wrapDeleteNotificationError(err), http.StatusBadRequest)
 		return
 	}
 
 	err = notificationdb.RemoveNotification(id)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusNotFound)
+		utils.LogAndSendHTTPError(&w, wrapDeleteNotificationError(err), http.StatusNotFound)
 	}
 }
 
 func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
-		log.Error(err)
+		utils.LogAndSendHTTPError(&w, wrapGetListenersError(err), http.StatusBadRequest)
 		return
 	}
 
@@ -107,14 +104,15 @@ func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 
 	jsonBytes, err := json.Marshal(usernames)
 	if err != nil {
-		utils.HandleJSONEncodeError(&w, serviceName, err)
+		utils.LogAndSendHTTPError(&w, wrapGetListenersError(err), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
 	_, err = w.Write(jsonBytes)
 	if err != nil {
-		handleError(&w, "Error writing json to body", err)
+		utils.LogAndSendHTTPError(&w, wrapGetListenersError(err), http.StatusInternalServerError)
 	}
 }
 
@@ -124,20 +122,22 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		WriteBufferSize: 1024,
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
-
 	if err != nil {
-		handleError(&w, "Connection error", err)
+		err = wrapSubscribeNotificationError(ws.WrapUpgradeConnectionError(err))
+		utils.LogAndSendHTTPError(&w, err, http.StatusInternalServerError)
 		return
 	}
 
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
+		utils.LogAndSendHTTPError(&w, wrapSubscribeNotificationError(err), http.StatusBadRequest)
 		return
 	}
 
 	username := claims.Username
-
 	if _, ok := userChannels.Load(username); ok {
+		err = wrapSubscribeNotificationError(newUserAlreadySubscribedError(username))
+		utils.LogAndSendHTTPError(&w, err, http.StatusConflict)
 		return
 	}
 
@@ -147,10 +147,10 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	go handleUser(username, conn, channel)
 }
 
-func UnsubscribeToNotificationsHandler(_ http.ResponseWriter, r *http.Request) {
+func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
-		log.Error(err)
+		utils.LogAndSendHTTPError(&w, wrapUnsubscribeNotificationError(err), http.StatusBadRequest)
 		return
 	}
 
@@ -169,7 +169,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 
 	err := conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	if err != nil {
-		log.Error(err)
+		log.Error(wrapHandleUserError(err, username))
 		return
 	}
 
@@ -185,11 +185,16 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 		select {
 		case <-ticker.C:
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Error(wrapHandleUserError(err, username))
 				return
 			}
 		case msg := <-channel:
 			msgString := msg.SerializeToWSMessage().Serialize()
-			clients.Send(conn, &msgString)
+			err = clients.Send(conn, &msgString)
+			if err != nil {
+				log.Error(wrapHandleUserError(err, username))
+				return
+			}
 		}
 	}
 }
@@ -204,10 +209,4 @@ func closeUserListener(username string, conn *websocket.Conn, channel chan ws.Se
 	}
 
 	ticker.Stop()
-}
-
-func handleError(w *http.ResponseWriter, errorString string, err error) {
-	log.Error(err)
-	http.Error(*w, errorString, http.StatusInternalServerError)
-	return
 }
