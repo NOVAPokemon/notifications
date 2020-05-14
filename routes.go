@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/api"
+	"strings"
 )
 
 const AddNotificationName = "ADD_NOTIFICATION"
@@ -16,7 +17,7 @@ const DELETE = "DELETE"
 const POST = "POST"
 
 var routes = utils.Routes{
-	api.DefaultRoute,
+	api.GenStatusRoute(strings.ToLower(serviceName)),
 	utils.Route{
 		Name:        AddNotificationName,
 		Method:      POST,
