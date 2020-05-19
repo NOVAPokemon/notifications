@@ -163,7 +163,6 @@ func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializable) {
 	log.Info("handling user ", username)
-
 	ticker := time.NewTicker(ws.PingPeriod)
 	defer closeUserListener(username, conn, channel, ticker)
 
@@ -173,7 +172,11 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 		return
 	}
 
-	conn.SetPongHandler(func(string) error { return conn.SetReadDeadline(time.Now().Add(ws.PongWait)) })
+	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
+	conn.SetPongHandler(func(string) error {
+		//log.Warn("Received pong")
+		return conn.SetReadDeadline(time.Now().Add(ws.PongWait))
+	})
 
 	go func() {
 		if _, _, err := conn.NextReader(); err != nil {
@@ -184,6 +187,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 	for {
 		select {
 		case <-ticker.C:
+			//log.Warn("Pinging")
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return
