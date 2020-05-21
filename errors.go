@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	errorUserNotListeningFormat      = "user %s is not listening"
 	errorUserAlreadySubscribedFormat = "user %s is already subscribed"
 	errorHandleUserFormat            = "error handling user %s"
 )
@@ -37,14 +36,10 @@ func wrapUnsubscribeNotificationError(err error) error {
 	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, UnsubscribeNotificationName))
 }
 
+
 // Other wrappers
 func wrapHandleUserError(err error, username string) error {
 	return errors.Wrap(err, fmt.Sprintf(errorHandleUserFormat, username))
-}
-
-// Error builders
-func newUserNotListeningError(username string) error {
-	return errors.New(fmt.Sprintf(errorUserNotListeningFormat, username))
 }
 
 func newUserAlreadySubscribedError(username string) error {

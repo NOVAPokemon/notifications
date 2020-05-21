@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/NOVAPokemon/notifications/kafka"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/api"
 	"github.com/NOVAPokemon/utils/clients"
@@ -14,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -22,6 +25,15 @@ type keyType = string
 type valueType = chan ws.Serializable
 
 var userChannels = sync.Map{}
+var kafkaUrl string
+
+func init() {
+	kafkaUrlAux, exists := os.LookupEnv(utils.KafkaEnvVar)
+	if !exists {
+		panic(fmt.Sprintf("missing: %s", utils.KafkaEnvVar))
+	}
+	kafkaUrl = kafkaUrlAux
+}
 
 func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
@@ -37,6 +49,8 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	username := notificationMsg.Notification.Username
+
 	notificationMsg.Notification.Id = primitive.NewObjectID()
 	err = notificationdb.AddNotification(notificationMsg.Notification)
 	if err != nil {
@@ -44,18 +58,21 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := notificationMsg.Notification.Username
 	value, ok := userChannels.Load(username)
 	if !ok {
-		err = wrapAddNotificationError(newUserNotListeningError(username))
-		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusNotFound)
+		// user is not listening to this server
+		producer := kafka.NotificationsProducer{
+			Username: username,
+			KafkaUrl: kafkaUrl,
+		}
+		err := producer.IssueOneNotification(notificationMsg)
+		if err != nil {
+			utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusInternalServerError)
+		}
 		return
 	}
-
 	channel := value.(valueType)
-
 	log.Infof("got notification from %s to %s", claims.Username, username)
-
 	channel <- notificationMsg
 }
 
@@ -140,10 +157,8 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndSendHTTPError(&w, err, http.StatusConflict)
 		return
 	}
-
 	channel := make(chan ws.Serializable)
 	userChannels.Store(username, channel)
-
 	go handleUser(username, conn, channel)
 }
 
@@ -163,14 +178,17 @@ func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializable) {
 	log.Info("handling user ", username)
-	ticker := time.NewTicker(ws.PingPeriod)
-	defer closeUserListener(username, conn, channel, ticker)
 
-	err := conn.SetReadDeadline(time.Now().Add(ws.PongWait))
-	if err != nil {
-		log.Error(wrapHandleUserError(err, username))
-		return
+	kafkaFinishChan := make(chan struct{})
+	consumer := kafka.NotificationsConsumer{
+		Username:             username,
+		KafkaUrl:             kafkaUrl,
+		FinishChan:           kafkaFinishChan,
+		NotificationsChannel: channel,
 	}
+	go consumer.PipeMessagesFromTopic()
+	ticker := time.NewTicker(ws.PingPeriod)
+	defer closeUserListener(username, conn, channel, kafkaFinishChan, ticker)
 
 	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	conn.SetPongHandler(func(string) error {
@@ -194,7 +212,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 			}
 		case msg := <-channel:
 			msgString := msg.SerializeToWSMessage().Serialize()
-			err = clients.Send(conn, &msgString)
+			err := clients.Send(conn, &msgString)
 			if err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return
@@ -203,10 +221,11 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 	}
 }
 
-func closeUserListener(username string, conn *websocket.Conn, channel chan ws.Serializable, ticker *time.Ticker) {
+func closeUserListener(username string, conn *websocket.Conn, channel chan ws.Serializable, kafkaFinishChan chan struct{}, ticker *time.Ticker) {
 	log.Info("removing user ", username)
 	ws.CloseConnection(conn)
 	close(channel)
+	close(kafkaFinishChan)
 
 	if _, ok := userChannels.Load(username); ok {
 		userChannels.Delete(username)
