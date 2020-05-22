@@ -33,7 +33,6 @@ LOOP:
 			ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
 			m, err := r.ReadMessage(ctx)
 			if err != nil {
-				log.Error(wrapConsumerError(err))
 				continue
 			}
 			deserialized := &ws.Message{}
