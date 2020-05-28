@@ -5,6 +5,7 @@ import (
 	notificationMessages "github.com/NOVAPokemon/utils/websockets/notifications"
 	kafka "github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 type NotificationsProducer struct {
@@ -15,9 +16,11 @@ type NotificationsProducer struct {
 func (nc *NotificationsProducer) IssueOneNotification(notification notificationMessages.NotificationMessage) error {
 
 	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:  []string{nc.KafkaUrl},
-		Topic:    nc.Username,
-		Balancer: &kafka.LeastBytes{},
+		BatchSize:    1,
+		BatchTimeout: 10 * time.Millisecond,
+		Brokers:      []string{nc.KafkaUrl},
+		Topic:        nc.Username,
+		Balancer:     &kafka.LeastBytes{},
 	})
 
 	toSend := kafka.Message{
@@ -29,10 +32,12 @@ func (nc *NotificationsProducer) IssueOneNotification(notification notificationM
 		err = wrapPublishMessageError(err)
 		log.Error(wrapProducerError(err))
 	}
+
 	if err := w.Close(); err != nil {
 		log.Error(wrapProducerError(err))
 		return err
 	}
+
 	return nil
 }
 

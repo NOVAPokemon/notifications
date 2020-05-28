@@ -19,9 +19,12 @@ type NotificationsConsumer struct {
 
 func (nc *NotificationsConsumer) PipeMessagesFromTopic() {
 	r := kafka.NewReader(kafka.ReaderConfig{
+		MaxWait:   1 * time.Second,
 		Brokers:   []string{nc.KafkaUrl},
 		Topic:     nc.Username,
 		Partition: 0,
+		MinBytes:  1e3,
+		MaxBytes:  10e6,
 	})
 
 LOOP:
@@ -30,11 +33,19 @@ LOOP:
 		case <-nc.FinishChan:
 			break LOOP
 		default:
-			ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+
+			before := ws.MakeTimestamp()
+
 			m, err := r.ReadMessage(ctx)
+			cancel()
+
+			after := ws.MakeTimestamp()
+
 			if err != nil {
 				continue
 			}
+
 			deserialized := &ws.Message{}
 			err = json.Unmarshal(m.Value, deserialized)
 			if err != nil {
@@ -52,6 +63,9 @@ LOOP:
 				log.Error(wrapConsumerError(err))
 				continue
 			}
+
+			log.Infof("read notification %s from kafka: %d ms", msg.GetId(), after-before)
+
 			nc.NotificationsChannel <- msg
 		}
 	}

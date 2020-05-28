@@ -61,6 +61,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	value, ok := userChannels.Load(username)
 	if !ok {
 		// user is not listening to this server
+		before := ws.MakeTimestamp()
 		producer := kafka.NotificationsProducer{
 			Username: username,
 			KafkaUrl: kafkaUrl,
@@ -69,6 +70,11 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusInternalServerError)
 		}
+
+		after := ws.MakeTimestamp()
+
+		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Id, after - before)
+
 		return
 	}
 	channel := value.(valueType)
@@ -192,7 +198,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 
 	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	conn.SetPongHandler(func(string) error {
-		//log.Warn("Received pong")
+		// log.Warn("Received pong")
 		return conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	})
 
@@ -205,7 +211,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 	for {
 		select {
 		case <-ticker.C:
-			//log.Warn("Pinging")
+			// log.Warn("Pinging")
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return
