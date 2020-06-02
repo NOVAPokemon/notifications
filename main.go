@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	host = utils.ServeHost
-	port = utils.NotificationsPort
+	host        = utils.ServeHost
+	port        = utils.NotificationsPort
 	serviceName = "MICROTRANSACTIONS"
 )
 

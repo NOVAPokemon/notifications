@@ -36,7 +36,6 @@ func wrapUnsubscribeNotificationError(err error) error {
 	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, UnsubscribeNotificationName))
 }
 
-
 // Other wrappers
 func wrapHandleUserError(err error, username string) error {
 	return errors.Wrap(err, fmt.Sprintf(errorHandleUserFormat, username))

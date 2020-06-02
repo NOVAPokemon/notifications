@@ -73,7 +73,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 		after := ws.MakeTimestamp()
 
-		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Id, after - before)
+		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Id, after-before)
 
 		return
 	}
