@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 	notificationMessages "github.com/NOVAPokemon/utils/websockets/notifications"
-	kafka "github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
