@@ -2,10 +2,11 @@ package kafka
 
 import (
 	"context"
+	"time"
+
 	notificationMessages "github.com/NOVAPokemon/utils/websockets/notifications"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 type NotificationsProducer struct {

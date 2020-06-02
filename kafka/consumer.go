@@ -3,11 +3,12 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	ws "github.com/NOVAPokemon/utils/websockets"
 	"github.com/NOVAPokemon/utils/websockets/notifications"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 type NotificationsConsumer struct {
