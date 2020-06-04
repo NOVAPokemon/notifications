@@ -1,10 +1,11 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
@@ -27,7 +28,6 @@ var (
 		Name: "notifications_sent_kafka",
 		Help: "The total number of sent notifications via kafka",
 	})
-
 )
 
 func EmitSentNotificationKafka() {

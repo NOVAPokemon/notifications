@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/NOVAPokemon/notifications/metrics"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/NOVAPokemon/notifications/metrics"
 
 	"github.com/NOVAPokemon/notifications/kafka"
 	"github.com/NOVAPokemon/utils"

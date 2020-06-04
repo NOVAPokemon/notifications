@@ -3,8 +3,9 @@ package kafka
 import (
 	"context"
 	"encoding/json"
-	"github.com/NOVAPokemon/notifications/metrics"
 	"time"
+
+	"github.com/NOVAPokemon/notifications/metrics"
 
 	ws "github.com/NOVAPokemon/utils/websockets"
 	"github.com/NOVAPokemon/utils/websockets/notifications"
