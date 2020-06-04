@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/NOVAPokemon/notifications/metrics"
 	"github.com/NOVAPokemon/utils"
 )
 
@@ -11,7 +12,7 @@ const (
 )
 
 func main() {
-	recordMetrics()
+	metrics.RecordMetrics(&userChannels)
 	utils.CheckLogFlag(serviceName)
 	utils.StartServer(serviceName, host, port, routes)
 }

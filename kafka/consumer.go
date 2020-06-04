@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"github.com/NOVAPokemon/notifications/metrics"
 	"time"
 
 	ws "github.com/NOVAPokemon/utils/websockets"
@@ -28,12 +29,15 @@ func (nc *NotificationsConsumer) PipeMessagesFromTopic() {
 		MaxBytes:  10e6,
 	})
 
-LOOP:
-	for {
-		select {
-		case <-nc.FinishChan:
-			break LOOP
-		default:
+	stop := false
+	auxChan := make(chan ws.Serializable)
+
+	go func() {
+		defer func() {
+			close(auxChan)
+			close(nc.NotificationsChannel)
+		}()
+		for !stop {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 
 			before := ws.MakeTimestamp()
@@ -64,9 +68,25 @@ LOOP:
 				log.Error(wrapConsumerError(err))
 				continue
 			}
-
 			log.Infof("read notification %s from kafka: %d ms", msg.GetId(), after-before)
 
+			select {
+			case <-nc.FinishChan:
+				break
+			case auxChan <- msg:
+				nc.NotificationsChannel <- msg
+			}
+		}
+	}()
+
+LOOP:
+	for {
+		select {
+		case <-nc.FinishChan:
+			stop = true
+			break LOOP
+		case msg := <-auxChan:
+			metrics.EmitReceivedNotificationKafka()
 			nc.NotificationsChannel <- msg
 		}
 	}
@@ -75,4 +95,8 @@ LOOP:
 		log.Error(wrapProducerError(err))
 	}
 	log.Warn("Kafka routine exiting...")
+}
+
+func (nc *NotificationsConsumer) Close() {
+	close(nc.FinishChan)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/NOVAPokemon/notifications/metrics"
 	"net/http"
 	"os"
 	"sync"
@@ -75,9 +76,10 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		after := ws.MakeTimestamp()
 
 		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Id, after-before)
-
+		metrics.EmitSentNotificationKafka()
 		return
 	}
+	metrics.EmitSentNotificationLocal()
 	channel := value.(valueType)
 	log.Infof("got notification from %s to %s", claims.Username, username)
 	channel <- notificationMsg
@@ -195,7 +197,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 	}
 	go consumer.PipeMessagesFromTopic()
 	ticker := time.NewTicker(ws.PingPeriod)
-	defer closeUserListener(username, conn, channel, kafkaFinishChan, ticker)
+	defer closeUserListener(consumer, conn, ticker)
 
 	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	conn.SetPongHandler(func(string) error {
@@ -228,14 +230,12 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 	}
 }
 
-func closeUserListener(username string, conn *websocket.Conn, channel chan ws.Serializable, kafkaFinishChan chan struct{}, ticker *time.Ticker) {
-	log.Info("removing user ", username)
+func closeUserListener(consumer kafka.NotificationsConsumer, conn *websocket.Conn, ticker *time.Ticker) {
+	log.Info("removing user ", consumer.Username)
 	ws.CloseConnection(conn)
-	close(channel)
-	close(kafkaFinishChan)
-
-	if _, ok := userChannels.Load(username); ok {
-		userChannels.Delete(username)
+	consumer.Close()
+	if _, ok := userChannels.Load(consumer.Username); ok {
+		userChannels.Delete(consumer.Username)
 	}
 
 	ticker.Stop()
