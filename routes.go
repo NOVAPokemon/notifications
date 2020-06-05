@@ -19,7 +19,7 @@ const DELETE = "DELETE"
 const POST = "POST"
 
 var routes = utils.Routes{
-	api.GenStatusRoute(strings.ToLower(fmt.Sprintf("/%s", serviceName))),
+	api.GenStatusRoute(strings.ToLower(fmt.Sprintf("%s", serviceName))),
 	utils.Route{
 		Name:        AddNotificationName,
 		Method:      POST,
