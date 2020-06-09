@@ -167,7 +167,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		utils.LogAndSendHTTPError(&w, err, http.StatusConflict)
 		return
 	}
-	channel := make(chan ws.Serializable)
+	channel := make(chan ws.Serializable, 5)
 	userChannels.Store(username, channel)
 	go handleUser(username, conn, channel)
 }

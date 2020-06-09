@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/NOVAPokemon/notifications/metrics"
-
 	ws "github.com/NOVAPokemon/utils/websockets"
 	"github.com/NOVAPokemon/utils/websockets/notifications"
 	"github.com/segmentio/kafka-go"
@@ -30,15 +29,14 @@ func (nc *NotificationsConsumer) PipeMessagesFromTopic() {
 		MaxBytes:  10e6,
 	})
 
-	stop := false
-	auxChan := make(chan ws.Serializable)
+	defer close(nc.NotificationsChannel)
 
-	go func() {
-		defer func() {
-			close(auxChan)
-			close(nc.NotificationsChannel)
-		}()
-		for !stop {
+LOOP:
+	for {
+		select {
+		case <-nc.FinishChan:
+			break LOOP
+		default:
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 
 			before := ws.MakeTimestamp()
@@ -71,22 +69,6 @@ func (nc *NotificationsConsumer) PipeMessagesFromTopic() {
 			}
 			log.Infof("read notification %s from kafka: %d ms", msg.GetId(), after-before)
 
-			select {
-			case <-nc.FinishChan:
-				break
-			case auxChan <- msg:
-				nc.NotificationsChannel <- msg
-			}
-		}
-	}()
-
-LOOP:
-	for {
-		select {
-		case <-nc.FinishChan:
-			stop = true
-			break LOOP
-		case msg := <-auxChan:
 			metrics.EmitReceivedNotificationKafka()
 			nc.NotificationsChannel <- msg
 		}
