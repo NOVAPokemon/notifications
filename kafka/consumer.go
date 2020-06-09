@@ -75,7 +75,6 @@ func (nc *NotificationsConsumer) PipeMessagesFromTopic() {
 			case <-nc.FinishChan:
 				break
 			case auxChan <- msg:
-				nc.NotificationsChannel <- msg
 			}
 		}
 	}()
