@@ -10,6 +10,7 @@ import (
 const (
 	errorUserAlreadySubscribedFormat = "user %s is already subscribed"
 	errorHandleUserFormat            = "error handling user %s"
+	errorUserLeft                    = "user %s is not listening anymore"
 )
 
 var (
@@ -44,4 +45,8 @@ func wrapHandleUserError(err error, username string) error {
 
 func newUserAlreadySubscribedError(username string) error {
 	return errors.New(fmt.Sprintf(errorUserAlreadySubscribedFormat, username))
+}
+
+func newUserAlreadyLeft(username string) error {
+	return errors.New(fmt.Sprintf(errorUserLeft, username))
 }

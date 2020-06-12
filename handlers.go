@@ -24,11 +24,19 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type keyType = string
-type valueType = chan ws.Serializable
+type (
+	keyType      = string
+	userChannels = struct {
+		notificationChannel chan ws.Serializable
+		finishChannel       chan struct{}
+	}
+	valueType = userChannels
+)
 
-var userChannels = sync.Map{}
-var kafkaUrl string
+var (
+	userChannelsMap = sync.Map{}
+	kafkaUrl        string
+)
 
 func init() {
 	kafkaUrlAux, exists := os.LookupEnv(utils.KafkaEnvVar)
@@ -61,7 +69,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	value, ok := userChannels.Load(username)
+	value, ok := userChannelsMap.Load(username)
 	if !ok {
 		// user is not listening to this server
 		before := ws.MakeTimestamp()
@@ -72,6 +80,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		err := producer.IssueOneNotification(notificationMsg)
 		if err != nil {
 			utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusInternalServerError)
+			return
 		}
 
 		after := ws.MakeTimestamp()
@@ -81,9 +90,15 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	metrics.EmitSentNotificationLocal()
-	channel := value.(valueType)
+	channels := value.(valueType)
 	log.Infof("got notification from %s to %s", claims.Username, username)
-	channel <- notificationMsg
+
+	select {
+	case <-channels.finishChannel:
+		utils.LogAndSendHTTPError(&w, newUserAlreadyLeft(username), http.StatusNotFound)
+		return
+	case channels.notificationChannel <- notificationMsg:
+	}
 }
 
 // Possibly useless endpoint since users dont need explicitly to delete
@@ -119,7 +134,7 @@ func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 	username := authToken.Username
 
 	var usernames []string
-	userChannels.Range(func(key, value interface{}) bool {
+	userChannelsMap.Range(func(key, value interface{}) bool {
 		currUsername := key.(keyType)
 		if currUsername != username {
 			usernames = append(usernames, currUsername)
@@ -162,14 +177,17 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := claims.Username
-	if _, ok := userChannels.Load(username); ok {
+	if _, ok := userChannelsMap.Load(username); ok {
 		err = wrapSubscribeNotificationError(newUserAlreadySubscribedError(username))
 		utils.LogAndSendHTTPError(&w, err, http.StatusConflict)
 		return
 	}
-	channel := make(chan ws.Serializable, 5)
-	userChannels.Store(username, channel)
-	go handleUser(username, conn, channel)
+	channels := userChannels{
+		notificationChannel: make(chan ws.Serializable, 5),
+		finishChannel:       make(chan struct{}),
+	}
+	userChannelsMap.Store(username, channels)
+	go handleUser(username, conn, channels)
 }
 
 func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -181,12 +199,12 @@ func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("unsubscribing %s from notifications", authToken.Username)
 
-	if _, ok := userChannels.Load(authToken.Username); ok {
-		userChannels.Delete(authToken.Username)
+	if _, ok := userChannelsMap.Load(authToken.Username); ok {
+		userChannelsMap.Delete(authToken.Username)
 	}
 }
 
-func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializable) {
+func handleUser(username string, conn *websocket.Conn, channels userChannels) {
 	log.Info("handling user ", username)
 
 	kafkaFinishChan := make(chan struct{})
@@ -194,7 +212,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 		Username:             username,
 		KafkaUrl:             kafkaUrl,
 		FinishChan:           kafkaFinishChan,
-		NotificationsChannel: channel,
+		NotificationsChannel: channels.notificationChannel,
 	}
 	go consumer.PipeMessagesFromTopic()
 	ticker := time.NewTicker(ws.PingPeriod)
@@ -220,7 +238,7 @@ func handleUser(username string, conn *websocket.Conn, channel chan ws.Serializa
 				log.Error(wrapHandleUserError(err, username))
 				return
 			}
-		case msg := <-channel:
+		case msg := <-channels.notificationChannel:
 			msgString := msg.SerializeToWSMessage().Serialize()
 			err := clients.Send(conn, &msgString)
 			if err != nil {
@@ -235,8 +253,8 @@ func closeUserListener(consumer kafka.NotificationsConsumer, conn *websocket.Con
 	log.Info("removing user ", consumer.Username)
 	ws.CloseConnection(conn)
 	consumer.Close()
-	if _, ok := userChannels.Load(consumer.Username); ok {
-		userChannels.Delete(consumer.Username)
+	if _, ok := userChannelsMap.Load(consumer.Username); ok {
+		userChannelsMap.Delete(consumer.Username)
 	}
 
 	ticker.Stop()
