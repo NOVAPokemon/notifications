@@ -12,7 +12,7 @@ const (
 )
 
 func main() {
-	metrics.RecordMetrics(&userChannels)
+	metrics.RecordMetrics(&userChannelsMap)
 	utils.CheckLogFlag(serviceName)
 	utils.StartServer(serviceName, host, port, routes)
 }
