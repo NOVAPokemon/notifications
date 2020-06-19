@@ -25,7 +25,7 @@ import (
 )
 
 type (
-	keyType      = string
+	keyType = string
 	userChannels = struct {
 		notificationChannel chan ws.Serializable
 		finishChannel       chan struct{}
@@ -251,7 +251,9 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels) {
 
 func closeUserListener(consumer kafka.NotificationsConsumer, conn *websocket.Conn, ticker *time.Ticker) {
 	log.Info("removing user ", consumer.Username)
-	ws.CloseConnection(conn)
+	if err := conn.Close(); err != nil {
+		log.Error(err)
+	}
 	consumer.Close()
 	if _, ok := userChannelsMap.Load(consumer.Username); ok {
 		userChannelsMap.Delete(consumer.Username)
