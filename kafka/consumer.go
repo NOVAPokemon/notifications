@@ -57,7 +57,7 @@ LOOP:
 				continue
 			}
 			msgStr := string(m.Value)
-			msgParsed, err := ws.ParseMessage(&msgStr)
+			msgParsed, err := ws.ParseMessage(msgStr)
 			if err != nil {
 				log.Error(wrapConsumerError(err))
 				continue
