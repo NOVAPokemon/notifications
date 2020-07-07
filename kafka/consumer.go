@@ -77,7 +77,7 @@ LOOP:
 	}
 
 	if err := r.Close(); err != nil {
-		log.Error(wrapProducerError(err))
+		log.Error(wrapConsumerError(err))
 	}
 	log.Warn("Kafka routine exiting...")
 }
