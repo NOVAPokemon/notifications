@@ -17,9 +17,9 @@ const (
 )
 
 const (
-	get    = "GET"
-	delete = "DELETE"
-	post   = "POST"
+	get        = "GET"
+	deleteVerb = "DELETE"
+	post       = "POST"
 )
 
 var routes = utils.Routes{
@@ -32,7 +32,7 @@ var routes = utils.Routes{
 	},
 	utils.Route{
 		Name:        deleteNotificationName,
-		Method:      delete,
+		Method:      deleteVerb,
 		Pattern:     api.SpecificNotificationRoute,
 		HandlerFunc: deleteNotificationHandler,
 	},
