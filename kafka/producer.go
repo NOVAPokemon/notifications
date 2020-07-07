@@ -9,11 +9,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// NotificationsProducer kafka notifications producer
 type NotificationsProducer struct {
 	KafkaUrl string
 	Username string
 }
 
+// IssueOneNotification send a notification
 func (nc *NotificationsProducer) IssueOneNotification(notification notificationMessages.NotificationMessage) error {
 
 	w := kafka.NewWriter(kafka.WriterConfig{
@@ -42,7 +44,8 @@ func (nc *NotificationsProducer) IssueOneNotification(notification notificationM
 	return nil
 }
 
-func (nc *NotificationsProducer) PipeNotificationsFromChan(inChan chan notificationMessages.NotificationMessage, finishChan chan struct{}) error {
+func (nc *NotificationsProducer) pipeNotificationsFromChan(inChan chan notificationMessages.NotificationMessage,
+	finishChan chan struct{}) error {
 
 	w := kafka.NewWriter(kafka.WriterConfig{
 		Brokers:  []string{nc.KafkaUrl},

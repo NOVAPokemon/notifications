@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// NotificationsConsumer kafka notification consumer
 type NotificationsConsumer struct {
 	KafkaUrl             string
 	NotificationsChannel chan ws.Serializable
@@ -19,6 +20,7 @@ type NotificationsConsumer struct {
 	Username             string
 }
 
+// PipeMessagesFromTopic send messages received from topic to channel
 func (nc *NotificationsConsumer) PipeMessagesFromTopic() {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		MaxWait:   1 * time.Second,
@@ -80,6 +82,7 @@ LOOP:
 	log.Warn("Kafka routine exiting...")
 }
 
+// Close stop reading messages from topic
 func (nc *NotificationsConsumer) Close() {
 	close(nc.FinishChan)
 }

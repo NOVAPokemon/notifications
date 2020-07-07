@@ -30,14 +30,17 @@ var (
 	})
 )
 
+// EmitSentNotificationKafka increment the number of notifications sent
 func EmitSentNotificationKafka() {
 	sentNotificationsLocal.Inc()
 }
 
+// EmitSentNotificationLocal increment the number of notifications sent to connected users
 func EmitSentNotificationLocal() {
 	receivedNotificationsKafka.Inc()
 }
 
+// EmitReceivedNotificationKafka increment the number of received notifications
 func EmitReceivedNotificationKafka() {
 	sentNotificationsKafka.Inc()
 }
@@ -51,7 +54,7 @@ func emitNrConnectedClients(userChannels *sync.Map) {
 	connectedClients.Set(float64(length))
 }
 
-// metrics for prometheus
+// RecordMetrics start routine to record metrics for prometheus
 func RecordMetrics(userChannels *sync.Map) {
 	go func() {
 		for {

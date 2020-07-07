@@ -19,23 +19,23 @@ var (
 
 // Handler wrappers
 func wrapAddNotificationError(err error) error {
-	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, AddNotificationName))
+	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, addNotificationName))
 }
 
 func wrapDeleteNotificationError(err error) error {
-	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, DeleteNotificationName))
+	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, deleteNotificationName))
 }
 
 func wrapGetListenersError(err error) error {
-	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, GetListenersName))
+	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, getListenersName))
 }
 
 func wrapSubscribeNotificationError(err error) error {
-	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, SubscribeNotificationName))
+	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, subscribeNotificationName))
 }
 
 func wrapUnsubscribeNotificationError(err error) error {
-	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, UnsubscribeNotificationName))
+	return errors.Wrap(err, fmt.Sprintf(utils.ErrorInHandlerFormat, unsubscribeNotificationName))
 }
 
 // Other wrappers

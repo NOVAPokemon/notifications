@@ -8,46 +8,50 @@ import (
 	"github.com/NOVAPokemon/utils/api"
 )
 
-const AddNotificationName = "ADD_NOTIFICATION"
-const DeleteNotificationName = "DELETE_NOTIFICATION"
-const SubscribeNotificationName = "SUBSCRIBE_NOTIFICATION"
-const UnsubscribeNotificationName = "UNSUBSCRIBE_NOTIFICATION"
-const GetListenersName = "GET_LISTENERS"
+const (
+	addNotificationName         = "ADD_NOTIFICATION"
+	deleteNotificationName      = "DELETE_NOTIFICATION"
+	subscribeNotificationName   = "SUBSCRIBE_NOTIFICATION"
+	unsubscribeNotificationName = "UNSUBSCRIBE_NOTIFICATION"
+	getListenersName            = "GET_LISTENERS"
+)
 
-const GET = "GET"
-const DELETE = "DELETE"
-const POST = "POST"
+const (
+	get    = "GET"
+	delete = "DELETE"
+	post   = "POST"
+)
 
 var routes = utils.Routes{
 	api.GenStatusRoute(strings.ToLower(fmt.Sprintf("%s", serviceName))),
 	utils.Route{
-		Name:        AddNotificationName,
-		Method:      POST,
+		Name:        addNotificationName,
+		Method:      post,
 		Pattern:     api.NotificationPath,
-		HandlerFunc: AddNotificationHandler,
+		HandlerFunc: addNotificationHandler,
 	},
 	utils.Route{
-		Name:        DeleteNotificationName,
-		Method:      DELETE,
+		Name:        deleteNotificationName,
+		Method:      delete,
 		Pattern:     api.SpecificNotificationRoute,
-		HandlerFunc: DeleteNotificationHandler,
+		HandlerFunc: deleteNotificationHandler,
 	},
 	utils.Route{
-		Name:        SubscribeNotificationName,
-		Method:      GET,
+		Name:        subscribeNotificationName,
+		Method:      get,
 		Pattern:     api.SubscribeNotificationPath,
-		HandlerFunc: SubscribeToNotificationsHandler,
+		HandlerFunc: subscribeToNotificationsHandler,
 	},
 	utils.Route{
-		Name:        GetListenersName,
-		Method:      GET,
+		Name:        getListenersName,
+		Method:      get,
 		Pattern:     api.GetListenersPath,
-		HandlerFunc: GetOtherListenersHandler,
+		HandlerFunc: getOtherListenersHandler,
 	},
 	utils.Route{
-		Name:        UnsubscribeNotificationName,
-		Method:      GET,
+		Name:        unsubscribeNotificationName,
+		Method:      get,
 		Pattern:     api.UnsubscribeNotificationPath,
-		HandlerFunc: UnsubscribeToNotificationsHandler,
+		HandlerFunc: unsubscribeToNotificationsHandler,
 	},
 }

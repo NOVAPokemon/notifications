@@ -46,7 +46,7 @@ func init() {
 	kafkaUrl = kafkaUrlAux
 }
 
-func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
+func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
@@ -77,7 +77,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 			Username: username,
 			KafkaUrl: kafkaUrl,
 		}
-		err := producer.IssueOneNotification(notificationMsg)
+		err = producer.IssueOneNotification(notificationMsg)
 		if err != nil {
 			utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusInternalServerError)
 			return
@@ -101,9 +101,7 @@ func AddNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Possibly useless endpoint since users dont need explicitly to delete
-// the notifications read.
-func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
+func deleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idHex, ok := vars[api.IdPathVar]
 	if !ok {
@@ -124,7 +122,7 @@ func DeleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
+func getOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapGetListenersError(err), http.StatusBadRequest)
@@ -158,7 +156,7 @@ func GetOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+func subscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -190,7 +188,7 @@ func SubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	go handleUser(username, conn, channels)
 }
 
-func UnsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapUnsubscribeNotificationError(err), http.StatusBadRequest)
