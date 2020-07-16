@@ -8,10 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NOVAPokemon/notifications/metrics"
-	"github.com/NOVAPokemon/utils/comms_manager"
-
 	"github.com/NOVAPokemon/notifications/kafka"
+	"github.com/NOVAPokemon/notifications/metrics"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/api"
 	"github.com/NOVAPokemon/utils/clients"
@@ -38,7 +36,7 @@ var (
 	userChannelsMap = sync.Map{}
 	kafkaUrl        string
 	serverName      string
-	commsManager    comms_manager.CommunicationManager
+	commsManager    utils.CommunicationManager
 )
 
 func init() {
@@ -212,7 +210,7 @@ func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleUser(username string, conn *websocket.Conn, channels userChannels, writer comms_manager.CommunicationManager) {
+func handleUser(username string, conn *websocket.Conn, channels userChannels, writer utils.CommunicationManager) {
 	log.Info("handling user ", username)
 
 	kafkaFinishChan := make(chan struct{})
