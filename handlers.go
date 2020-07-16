@@ -35,10 +35,10 @@ type (
 )
 
 var (
-	userChannelsMap     = sync.Map{}
-	kafkaUrl            string
-	serverName          string
-	commsManager        comms_manager.CommunicationManager
+	userChannelsMap = sync.Map{}
+	kafkaUrl        string
+	serverName      string
+	commsManager    comms_manager.CommunicationManager
 )
 
 func init() {
