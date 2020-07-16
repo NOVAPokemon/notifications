@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/NOVAPokemon/notifications/metrics"
+	"github.com/NOVAPokemon/utils/comms_manager"
 
 	"github.com/NOVAPokemon/notifications/kafka"
 	"github.com/NOVAPokemon/utils"
@@ -25,7 +26,7 @@ import (
 )
 
 type (
-	keyType = string
+	keyType      = string
 	userChannels = struct {
 		notificationChannel chan ws.Serializable
 		finishChannel       chan struct{}
@@ -34,11 +35,20 @@ type (
 )
 
 var (
-	userChannelsMap = sync.Map{}
-	kafkaUrl        string
+	userChannelsMap     = sync.Map{}
+	kafkaUrl            string
+	serverName          string
+	commsManager        comms_manager.CommunicationManager
 )
 
 func init() {
+	if aux, exists := os.LookupEnv(utils.HostnameEnvVar); exists {
+		serverName = aux
+	} else {
+		log.Fatal("could not load server name")
+	}
+	log.Info("Server name : ", serverName)
+
 	kafkaUrlAux, exists := os.LookupEnv(utils.KafkaEnvVar)
 	if !exists {
 		panic(fmt.Sprintf("missing: %s", utils.KafkaEnvVar))
@@ -185,7 +195,7 @@ func subscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		finishChannel:       make(chan struct{}),
 	}
 	userChannelsMap.Store(username, channels)
-	go handleUser(username, conn, channels)
+	go handleUser(username, conn, channels, commsManager)
 }
 
 func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -202,7 +212,7 @@ func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleUser(username string, conn *websocket.Conn, channels userChannels) {
+func handleUser(username string, conn *websocket.Conn, channels userChannels, writer comms_manager.CommunicationManager) {
 	log.Info("handling user ", username)
 
 	kafkaFinishChan := make(chan struct{})
@@ -218,7 +228,6 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels) {
 
 	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	conn.SetPongHandler(func(string) error {
-		// log.Warn("Received pong")
 		return conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	})
 
@@ -231,14 +240,13 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels) {
 	for {
 		select {
 		case <-ticker.C:
-			// log.Warn("Pinging")
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			err := writer.WriteNonTextMessageToConn(conn, websocket.PingMessage, nil)
+			if err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return
 			}
 		case msg := <-channels.notificationChannel:
-			msgString := msg.SerializeToWSMessage().Serialize()
-			err := clients.Send(conn, &msgString)
+			err := clients.Send(conn, msg, writer)
 			if err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return
