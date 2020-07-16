@@ -36,7 +36,7 @@ var (
 	userChannelsMap = sync.Map{}
 	kafkaUrl        string
 	serverName      string
-	commsManager    utils.CommunicationManager
+	commsManager    ws.CommunicationManager
 )
 
 func init() {
@@ -210,7 +210,7 @@ func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleUser(username string, conn *websocket.Conn, channels userChannels, writer utils.CommunicationManager) {
+func handleUser(username string, conn *websocket.Conn, channels userChannels, writer ws.CommunicationManager) {
 	log.Info("handling user ", username)
 
 	kafkaFinishChan := make(chan struct{})
