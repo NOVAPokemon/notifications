@@ -238,7 +238,10 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 	for {
 		select {
 		case <-ticker.C:
-			err := writer.WriteNonTextMessageToConn(conn, websocket.PingMessage, nil)
+			err := writer.WriteGenericMessageToConn(conn, ws.GenericMsg{
+				MsgType: websocket.PingMessage,
+				Data:    nil,
+			})
 			if err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return
