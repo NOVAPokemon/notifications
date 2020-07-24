@@ -16,7 +16,7 @@ type NotificationsProducer struct {
 }
 
 // IssueOneNotification send a notification
-func (nc *NotificationsProducer) IssueOneNotification(notification notificationMessages.NotificationMessage) error {
+func (nc *NotificationsProducer) IssueOneNotification(notification *notificationMessages.NotificationMessage) error {
 	retry := false
 
 	for retry {
@@ -30,7 +30,7 @@ func (nc *NotificationsProducer) IssueOneNotification(notification notificationM
 
 		toSend := kafka.Message{
 			Key:   []byte(nc.Username),
-			Value: []byte(notification.SerializeToWSMessage().Serialize()),
+			Value: notification.ConvertToWSMessage().Content.Serialize(),
 		}
 
 		if err := w.WriteMessages(context.Background(), toSend); err != nil {
@@ -71,7 +71,7 @@ LOOP:
 
 			toSend := kafka.Message{
 				Key:   []byte(nc.Username),
-				Value: []byte(notification.SerializeToWSMessage().Serialize()),
+				Value: notification.ConvertToWSMessage().Content.Serialize(),
 			}
 
 			if err := w.WriteMessages(context.Background(), toSend); err != nil {

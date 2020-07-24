@@ -26,7 +26,7 @@ import (
 type (
 	keyType      = string
 	userChannels = struct {
-		notificationChannel chan ws.Serializable
+		notificationChannel chan *ws.WebsocketMsg
 		finishChannel       chan struct{}
 	}
 	valueType = userChannels
@@ -85,7 +85,7 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 			Username: username,
 			KafkaUrl: kafkaUrl,
 		}
-		err = producer.IssueOneNotification(notificationMsg)
+		err = producer.IssueOneNotification(&notificationMsg)
 		if err != nil {
 			utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusInternalServerError)
 			return
@@ -93,7 +93,7 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 		after := ws.MakeTimestamp()
 
-		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Id, after-before)
+		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Notification.Id, after-before)
 		metrics.EmitSentNotificationKafka()
 		return
 	}
@@ -105,7 +105,7 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	case <-channels.finishChannel:
 		utils.LogAndSendHTTPError(&w, newUserAlreadyLeft(username), http.StatusNotFound)
 		return
-	case channels.notificationChannel <- notificationMsg:
+	case channels.notificationChannel <- notificationMsg.ConvertToWSMessage():
 	}
 }
 
@@ -189,7 +189,7 @@ func subscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	channels := userChannels{
-		notificationChannel: make(chan ws.Serializable, 5),
+		notificationChannel: make(chan *ws.WebsocketMsg, 5),
 		finishChannel:       make(chan struct{}),
 	}
 	userChannelsMap.Store(username, channels)
@@ -238,10 +238,7 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 	for {
 		select {
 		case <-ticker.C:
-			err := writer.WriteGenericMessageToConn(conn, ws.GenericMsg{
-				MsgType: websocket.PingMessage,
-				Data:    nil,
-			})
+			err := writer.WriteGenericMessageToConn(conn, ws.NewControlMsg(websocket.PingMessage))
 			if err != nil {
 				log.Error(wrapHandleUserError(err, username))
 				return

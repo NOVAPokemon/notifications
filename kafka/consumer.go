@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/NOVAPokemon/notifications/metrics"
@@ -15,7 +14,7 @@ import (
 // NotificationsConsumer kafka notification consumer
 type NotificationsConsumer struct {
 	KafkaUrl             string
-	NotificationsChannel chan ws.Serializable
+	NotificationsChannel chan *ws.WebsocketMsg
 	FinishChan           chan struct{}
 	Username             string
 }
@@ -52,27 +51,12 @@ LOOP:
 				continue
 			}
 
-			deserialized := &ws.Message{}
-			err = json.Unmarshal(m.Value, deserialized)
-			if err != nil {
-				log.Error(wrapConsumerError(err))
-				continue
-			}
-			msgStr := string(m.Value)
-			msgParsed, err := ws.ParseMessage(msgStr)
-			if err != nil {
-				log.Error(wrapConsumerError(err))
-				continue
-			}
-			msg, err := notifications.DeserializeNotificationMessage(msgParsed)
-			if err != nil {
-				log.Error(wrapConsumerError(err))
-				continue
-			}
-			log.Infof("read notification %s from kafka: %d ms", msg.GetId(), after-before)
+			wsMsgContent := ws.ParseContent(m.Value)
+			notificationMsg := wsMsgContent.Data.(notifications.NotificationMessage)
+			log.Infof("read notification %s from kafka: %d ms", notificationMsg.Notification.Id, after-before)
 
 			metrics.EmitReceivedNotificationKafka()
-			nc.NotificationsChannel <- msg
+			nc.NotificationsChannel <- notificationMsg.ConvertToWSMessage()
 		}
 	}
 
