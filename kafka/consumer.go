@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"github.com/mitchellh/mapstructure"
 	"time"
 
 	"github.com/NOVAPokemon/notifications/metrics"
@@ -52,7 +53,13 @@ LOOP:
 			}
 
 			wsMsgContent := ws.ParseContent(m.Value)
-			notificationMsg := wsMsgContent.Data.(notifications.NotificationMessage)
+
+			notificationMsg := &notifications.NotificationMessage{}
+			err = mapstructure.Decode(wsMsgContent.Data, &notificationMsg)
+			if err != nil {
+				panic(err)
+			}
+
 			log.Infof("read notification %s from kafka: %d ms", notificationMsg.Notification.Id, after-before)
 
 			metrics.EmitReceivedNotificationKafka()
