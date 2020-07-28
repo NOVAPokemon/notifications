@@ -70,7 +70,7 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := notificationMsg.Notification.Username
 
-	notificationMsg.Notification.Id = primitive.NewObjectID()
+	notificationMsg.Notification.Id = primitive.NewObjectID().Hex()
 	err = notificationdb.AddNotification(notificationMsg.Notification)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
