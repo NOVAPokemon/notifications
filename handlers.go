@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
+	originalHttp "net/http"
 	"os"
 	"sync"
 	"time"
+
+	http "github.com/bruno-anjos/archimedesHTTPClient"
 
 	"github.com/NOVAPokemon/notifications/kafka"
 	"github.com/NOVAPokemon/notifications/metrics"
@@ -54,7 +56,7 @@ func init() {
 	kafkaUrl = kafkaUrlAux
 }
 
-func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
+func addNotificationHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
@@ -109,7 +111,7 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func deleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
+func deleteNotificationHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
 	vars := mux.Vars(r)
 	idHex, ok := vars[api.IdPathVar]
 	if !ok {
@@ -130,7 +132,7 @@ func deleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
+func getOtherListenersHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapGetListenersError(err), http.StatusBadRequest)
@@ -164,7 +166,7 @@ func getOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func subscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+func subscribeToNotificationsHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -196,7 +198,7 @@ func subscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	go handleUser(username, conn, channels, commsManager)
 }
 
-func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+func unsubscribeToNotificationsHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapUnsubscribeNotificationError(err), http.StatusBadRequest)
