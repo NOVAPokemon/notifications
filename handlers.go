@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	originalHttp "net/http"
 	"os"
 	"sync"
 	"time"
@@ -56,7 +55,7 @@ func init() {
 	kafkaUrl = kafkaUrlAux
 }
 
-func addNotificationHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
+func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
@@ -111,7 +110,7 @@ func addNotificationHandler(w originalHttp.ResponseWriter, r *originalHttp.Reque
 	}
 }
 
-func deleteNotificationHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
+func deleteNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idHex, ok := vars[api.IdPathVar]
 	if !ok {
@@ -132,7 +131,7 @@ func deleteNotificationHandler(w originalHttp.ResponseWriter, r *originalHttp.Re
 	}
 }
 
-func getOtherListenersHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
+func getOtherListenersHandler(w http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapGetListenersError(err), http.StatusBadRequest)
@@ -166,7 +165,7 @@ func getOtherListenersHandler(w originalHttp.ResponseWriter, r *originalHttp.Req
 	}
 }
 
-func subscribeToNotificationsHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
+func subscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -198,7 +197,7 @@ func subscribeToNotificationsHandler(w originalHttp.ResponseWriter, r *originalH
 	go handleUser(username, conn, channels, commsManager)
 }
 
-func unsubscribeToNotificationsHandler(w originalHttp.ResponseWriter, r *originalHttp.Request) {
+func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 	authToken, err := tokens.ExtractAndVerifyAuthToken(r.Header)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapUnsubscribeNotificationError(err), http.StatusBadRequest)
