@@ -2,14 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"sync"
 	"time"
 
 	http "github.com/bruno-anjos/archimedesHTTPClient"
 
-	"github.com/NOVAPokemon/notifications/kafka"
 	"github.com/NOVAPokemon/notifications/metrics"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/api"
@@ -35,7 +33,6 @@ type (
 
 var (
 	userChannelsMap = sync.Map{}
-	kafkaUrl        string
 	serverName      string
 	commsManager    ws.CommunicationManager
 )
@@ -46,13 +43,7 @@ func init() {
 	} else {
 		log.Fatal("could not load server name")
 	}
-	log.Info("Server name : ", serverName)
-
-	kafkaUrlAux, exists := os.LookupEnv(utils.KafkaEnvVar)
-	if !exists {
-		panic(fmt.Sprintf("missing: %s", utils.KafkaEnvVar))
-	}
-	kafkaUrl = kafkaUrlAux
+	log.Info("Server name: ", serverName)
 }
 
 func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
@@ -80,23 +71,7 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	value, ok := userChannelsMap.Load(username)
 	if !ok {
-		// user is not listening to this server
-		before := ws.MakeTimestamp()
-		producer := kafka.NotificationsProducer{
-			Username: username,
-			KafkaUrl: kafkaUrl,
-		}
-		err = producer.IssueOneNotification(&notificationMsg)
-		if err != nil {
-			utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusInternalServerError)
-			return
-		}
-
-		after := ws.MakeTimestamp()
-
-		log.Infof("issue notification %s to kafka: %d ms", notificationMsg.Notification.Id, after-before)
-		metrics.EmitSentNotificationKafka()
-		return
+		log.Panicf("user %s should be listening in the only server", username)
 	}
 	metrics.EmitSentNotificationLocal()
 	channels := value.(valueType)
@@ -214,16 +189,8 @@ func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 func handleUser(username string, conn *websocket.Conn, channels userChannels, writer ws.CommunicationManager) {
 	log.Info("handling user ", username)
 
-	kafkaFinishChan := make(chan struct{})
-	consumer := kafka.NotificationsConsumer{
-		Username:             username,
-		KafkaUrl:             kafkaUrl,
-		FinishChan:           kafkaFinishChan,
-		NotificationsChannel: channels.notificationChannel,
-	}
-	go consumer.PipeMessagesFromTopic()
 	ticker := time.NewTicker(ws.PingPeriod)
-	defer closeUserListener(consumer, conn, ticker)
+	defer closeUserListener(username, conn, ticker)
 
 	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
 	conn.SetPongHandler(func(string) error {
@@ -254,14 +221,14 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 	}
 }
 
-func closeUserListener(consumer kafka.NotificationsConsumer, conn *websocket.Conn, ticker *time.Ticker) {
-	log.Info("removing user ", consumer.Username)
+func closeUserListener(username string, conn *websocket.Conn, ticker *time.Ticker) {
+	log.Info("removing user ", username)
 	if err := conn.Close(); err != nil {
 		log.Error(err)
 	}
-	consumer.Close()
-	if _, ok := userChannelsMap.Load(consumer.Username); ok {
-		userChannelsMap.Delete(consumer.Username)
+
+	if _, ok := userChannelsMap.Load(username); ok {
+		userChannelsMap.Delete(username)
 	}
 
 	ticker.Stop()
