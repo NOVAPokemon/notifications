@@ -2,8 +2,9 @@ package kafka
 
 import (
 	"context"
-	"github.com/mitchellh/mapstructure"
 	"time"
+
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/NOVAPokemon/notifications/metrics"
 	ws "github.com/NOVAPokemon/utils/websockets"
