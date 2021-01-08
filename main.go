@@ -9,7 +9,7 @@ import (
 const (
 	host        = utils.ServeHost
 	port        = utils.NotificationsPort
-	serviceName = "MICROTRANSACTIONS"
+	serviceName = "NOTIFICATIONS"
 )
 
 func main() {
