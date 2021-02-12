@@ -55,7 +55,7 @@ LOOP:
 
 			wsMsgContent := ws.ParseContent(m.Value)
 
-			notificationMsg := &notifications.NotificationMessage{}
+			notificationMsg := notifications.NotificationMessage{}
 			err = mapstructure.Decode(wsMsgContent.Data, &notificationMsg)
 			if err != nil {
 				panic(err)
