@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/NOVAPokemon/utils/websockets/notifications"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -62,7 +64,6 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := notificationMsg.Notification.Username
 
-	notificationMsg.Notification.Id = primitive.NewObjectID().Hex()
 	err = notificationdb.AddNotification(notificationMsg.Notification)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
@@ -71,11 +72,15 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	value, ok := userChannelsMap.Load(username)
 	if !ok {
-		log.Panicf("user %s should be listening in the only server", username)
+		notFoundErr := errors.New(fmt.Sprintf("user %s should be listening in the only server", username))
+		utils.LogWarnAndSendHTTPError(&w, notFoundErr, http.StatusNotFound)
+		return
 	}
+
 	metrics.EmitSentNotificationLocal()
 	channels := value.(valueType)
-	log.Infof("got notification from %s to %s", claims.Username, username)
+	log.Infof("got notification %s from %s to %s (%d)", notificationMsg.Notification.Id, claims.Username,
+		username, ws.MakeTimestamp())
 
 	select {
 	case <-channels.finishChannel:
