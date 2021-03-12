@@ -70,7 +70,6 @@ func addNotificationHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := notificationMsg.Notification.Username
 
-	notificationMsg.Notification.Id = primitive.NewObjectID().Hex()
 	err = notificationdb.AddNotification(notificationMsg.Notification)
 	if err != nil {
 		utils.LogAndSendHTTPError(&w, wrapAddNotificationError(err), http.StatusBadRequest)
@@ -240,13 +239,13 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 		case <-ticker.C:
 			err := writer.WriteGenericMessageToConn(conn, ws.NewControlMsg(websocket.PingMessage))
 			if err != nil {
-				log.Error(wrapHandleUserError(err, username))
+				log.Warn(wrapHandleUserError(err, username))
 				return
 			}
 		case msg := <-channels.notificationChannel:
 			err := clients.Send(conn, msg, writer)
 			if err != nil {
-				log.Error(wrapHandleUserError(err, username))
+				log.Warn(wrapHandleUserError(err, username))
 				return
 			}
 		}
@@ -256,7 +255,7 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 func closeUserListener(consumer kafka.NotificationsConsumer, conn *websocket.Conn, ticker *time.Ticker) {
 	log.Info("removing user ", consumer.Username)
 	if err := conn.Close(); err != nil {
-		log.Error(err)
+		log.Warn(err)
 	}
 	consumer.Close()
 	if _, ok := userChannelsMap.Load(consumer.Username); ok {
