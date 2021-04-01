@@ -15,3 +15,5 @@
 # vendor/
 
 dockerize
+
+.DS_Store
