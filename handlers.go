@@ -194,34 +194,46 @@ func unsubscribeToNotificationsHandler(w http.ResponseWriter, r *http.Request) {
 func handleUser(username string, conn *websocket.Conn, channels userChannels, writer ws.CommunicationManager) {
 	log.Info("handling user ", username)
 
-	ticker := time.NewTicker(ws.PingPeriod)
+	ticker := time.NewTicker(ws.TimeoutVal * (6. / 10.) * time.Second)
 	defer closeUserListener(username, conn, ticker)
 
-	_ = conn.SetReadDeadline(time.Now().Add(ws.PongWait))
+	err := conn.SetReadDeadline(time.Now().Add(ws.Timeout))
+	if err != nil {
+		log.Error(fmt.Errorf("error setting read deadline %w", err))
+	}
+
 	conn.SetPongHandler(func(string) error {
-		return conn.SetReadDeadline(time.Now().Add(ws.PongWait))
+		return conn.SetReadDeadline(time.Now().Add(ws.Timeout))
 	})
+
+	failed := make(chan struct{})
 
 	go func() {
 		if _, _, err := conn.NextReader(); err != nil {
+			close(failed)
 			return
 		}
 	}()
 
+	conn.SetWriteDeadline(time.Now().Add(ws.Timeout))
+
 	for {
 		select {
 		case <-ticker.C:
-			err := writer.WriteGenericMessageToConn(conn, ws.NewControlMsg(websocket.PingMessage))
+			err = writer.WriteGenericMessageToConn(conn, ws.NewControlMsg(websocket.PingMessage))
 			if err != nil {
 				log.Warn(wrapHandleUserError(err, username))
 				return
 			}
 		case msg := <-channels.notificationChannel:
-			err := clients.Send(conn, msg, writer)
+			err = clients.Send(conn, msg, writer)
 			if err != nil {
 				log.Warn(wrapHandleUserError(err, username))
 				return
 			}
+		case <-failed:
+			log.Warnf("user %s looks dead", username)
+			return
 		}
 	}
 }
