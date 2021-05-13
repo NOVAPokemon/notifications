@@ -197,13 +197,13 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 	ticker := time.NewTicker(ws.TimeoutVal * (6. / 10.) * time.Second)
 	defer closeUserListener(username, conn, ticker)
 
-	err := conn.SetReadDeadline(time.Now().Add(ws.Timeout))
+	err := conn.SetReadDeadline(time.Now().Add(ws.WebsocketTimeout))
 	if err != nil {
 		log.Error(fmt.Errorf("error setting read deadline %w", err))
 	}
 
 	conn.SetPongHandler(func(string) error {
-		return conn.SetReadDeadline(time.Now().Add(ws.Timeout))
+		return conn.SetReadDeadline(time.Now().Add(ws.WebsocketTimeout))
 	})
 
 	failed := make(chan struct{})
@@ -215,7 +215,7 @@ func handleUser(username string, conn *websocket.Conn, channels userChannels, wr
 		}
 	}()
 
-	conn.SetWriteDeadline(time.Now().Add(ws.Timeout))
+	conn.SetWriteDeadline(time.Now().Add(ws.WebsocketTimeout))
 
 	for {
 		select {
